@@ -22,6 +22,7 @@ VERSAO_API = "1.0.0"
 LIMITE_PADRAO = 10
 LIMITE_MINIMO = 1
 LIMITE_MAXIMO = 100
+MAX_CANDIDATOS_CIDADE = 5
 
 
 def _agora_iso() -> str:
@@ -88,26 +89,44 @@ def criar_app() -> Flask:
                 campos_extra={"nome_informado": nome_cidade},
             )
 
-        # Usa a primeira cidade retornada pela busca do CPTEC.
-        cidade = cidades_encontradas[0]
-        previsao = cptec_service.obter_previsao(cidade["id"])
-        clima_hoje = previsao["clima"][0]
+        # A busca por nome pode devolver mais de uma cidade (nomes repetidos
+        # em estados diferentes, povoados pequenos sem previsão cadastrada
+        # etc.). Em vez de depender só da primeira, tentamos algumas
+        # candidatas em ordem até achar uma com previsão disponível — isso
+        # deixa a busca confiável para qualquer nome de cidade digitado, não
+        # só para os exemplos usados nos testes.
+        ultimo_erro: ApiError | None = None
+        for cidade in cidades_encontradas[:MAX_CANDIDATOS_CIDADE]:
+            try:
+                previsao = cptec_service.obter_previsao(cidade["id"])
+            except ApiError as erro:
+                ultimo_erro = erro
+                continue
 
-        return (
-            jsonify(
-                {
-                    "nome": cidade["nome"],
-                    "estado": cidade["estado"],
-                    "clima": {
-                        "temperatura_min": clima_hoje["min"],
-                        "temperatura_max": clima_hoje["max"],
-                        "condicao": clima_hoje.get("condicao_desc") or clima_hoje.get("condicao"),
-                        "unidades": {"temperatura": "°C"},
-                    },
-                    "consultado_em": _agora_iso(),
-                }
-            ),
-            200,
+            clima_hoje = previsao["clima"][0]
+            return (
+                jsonify(
+                    {
+                        "nome": cidade["nome"],
+                        "estado": cidade["estado"],
+                        "clima": {
+                            "temperatura_min": clima_hoje["min"],
+                            "temperatura_max": clima_hoje["max"],
+                            "condicao": clima_hoje.get("condicao_desc") or clima_hoje.get("condicao"),
+                            "unidades": {"temperatura": "°C"},
+                        },
+                        "consultado_em": _agora_iso(),
+                    }
+                ),
+                200,
+            )
+
+        # Nenhuma das cidades candidatas teve previsão disponível.
+        raise ultimo_erro or ApiError(
+            status_code=503,
+            codigo="SERVICO_EXTERNO_INDISPONIVEL",
+            mensagem="Não foi possível obter dados do serviço externo. Tente novamente em alguns instantes",
+            campos_extra={"servico": "CPTEC"},
         )
 
     # ---- Endpoint 2: Listagem de cidades por estado -------------------------

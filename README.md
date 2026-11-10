@@ -8,6 +8,34 @@ resolvendo toda a identificação da localidade e suas coordenadas de forma
 **dinâmica**, consumindo APIs públicas — nenhuma coordenada é fixada no
 código.
 
+## Para quem vai avaliar (checklist rápido)
+
+Pré-requisitos: Python 3.11+ e acesso à internet (a API consulta a Brasil API em tempo real, não há dados simulados em produção).
+
+```bash
+git clone <url-do-repositorio>
+cd <pasta-do-repositorio>
+python3 -m venv venv && source venv/bin/activate     # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python run.py          # deixa rodando em http://localhost:3000
+```
+
+Em outro terminal (ou colando os links no navegador, já que são todos `GET`):
+
+| # | Critério da proposta | Requisição | Esperado |
+|---|---|---|---|
+| 1 | Health check | `curl http://localhost:3000/api/v1/health` | `200`, JSON com `status` |
+| 2 | Clima — sucesso | `curl http://localhost:3000/api/v1/clima/Fortaleza` | `200`, JSON com dados geográficos + clima |
+| 3 | Clima — cidade não encontrada | `curl -i http://localhost:3000/api/v1/clima/CidadeInexistenteXYZ` | `404`, `codigo: CIDADE_NAO_ENCONTRADA` |
+| 4 | Clima — nome inválido | `curl -i http://localhost:3000/api/v1/clima/X` | `400`, `codigo: NOME_INVALIDO` |
+| 5 | Cidades por estado — sucesso | `curl "http://localhost:3000/api/v1/cidades/CE?limite=5"` | `200`, lista com 5 cidades |
+| 6 | Cidades por estado — UF não encontrada | `curl -i http://localhost:3000/api/v1/cidades/XX` | `404`, `codigo: UF_NAO_ENCONTRADA` |
+| 7 | Cidades por estado — sigla inválida | `curl -i http://localhost:3000/api/v1/cidades/ceara` | `400`, `codigo: SIGLA_UF_INVALIDA` |
+| 8 | `INTEGRANTES.md` | abrir o arquivo na raiz do repositório | tabela preenchida com nome e matrícula reais |
+| 9 | Coleção Postman | abrir `docs/postman_collection.json` no Postman (Import) | 7 requisições, com testes automáticos embutidos |
+
+Também é possível rodar `pytest -v` na raiz do projeto para ver a suíte de 9 testes automatizados passando (cobre os caminhos de sucesso e os erros 400/404 dos dois endpoints de dados, além do health check).
+
 ## Sumário
 
 - [Arquitetura e decisões técnicas](#arquitetura-e-decisões-técnicas)
@@ -222,8 +250,15 @@ localmente (`python run.py`) para executar as requisições.
 ## Decisões e limitações conhecidas
 
 - Quando a busca por nome de cidade no CPTEC retorna mais de um resultado
-  (nomes de cidade duplicados em estados diferentes), a aplicação usa o
-  **primeiro resultado** retornado pela própria Brasil API.
+  (nomes de cidade duplicados em estados diferentes, ou povoados pequenos sem
+  previsão cadastrada), a aplicação **não trava na primeira opção**: ela
+  tenta, em ordem, até 5 das cidades retornadas pela busca e usa a primeira
+  que tiver previsão do tempo disponível. Isso torna a busca confiável para
+  nomes de cidade "do dia a dia" digitados por qualquer pessoa, não só para
+  os exemplos de capitais usados nos testes.
+- A busca de nome em si (aceitar nome parcial, sem acento, minúsculo etc.) é
+  responsabilidade do próprio endpoint de busca do CPTEC na Brasil API; a
+  aplicação não reimplementa correção ortográfica por cima disso.
 - O endpoint `/api/v1/cidades/{sigla_uf}` trata respostas `400`, `404` e
   `200` com lista vazia da Brasil API — IBGE como "UF não encontrada", pois
   o comportamento da API externa para UFs inexistentes não é 100%
@@ -257,6 +292,10 @@ Anthropic**) durante o desenvolvimento desta atividade, da seguinte forma:
 - A pesquisa dos formatos reais de resposta das APIs da Brasil API
   (CPTEC e IBGE) foi feita pela ferramenta via busca na web, já que esses
   detalhes não estavam na proposta da atividade.
+- Em uma segunda rodada, a ferramenta também adicionou uma lógica de
+  retentativa no endpoint de clima (para cidades com nomes repetidos ou sem
+  previsão cadastrada) e a seção "Para quem vai avaliar" deste README, a
+  pedido da equipe.
 
 **[A equipe deve completar aqui]:** quais partes do código foram revisadas,
 testadas manualmente e compreendidas por cada integrante; se houve ajustes
