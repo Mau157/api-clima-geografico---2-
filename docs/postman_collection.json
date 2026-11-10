@@ -1,0 +1,227 @@
+{
+  "info": {
+    "name": "API de Agregação de Dados Climáticos e Geográficos",
+    "description": "Coleção de testes para a atividade N703 - Técnicas de Integração de Sistemas. Inicie a API localmente (python run.py) antes de rodar esta coleção.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Resposta contém status e versao', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo).to.have.property('status');",
+              "    pm.expect(corpo).to.have.property('versao');",
+              "    pm.expect(corpo).to.have.property('timestamp');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clima - Fortaleza (sucesso)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/clima/Fortaleza",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "clima", "Fortaleza"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Resposta contém dados geográficos e climáticos', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo).to.have.property('nome');",
+              "    pm.expect(corpo).to.have.property('estado');",
+              "    pm.expect(corpo.clima).to.have.property('temperatura_min');",
+              "    pm.expect(corpo.clima).to.have.property('temperatura_max');",
+              "    pm.expect(corpo.clima).to.have.property('condicao');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clima - cidade inexistente (404)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/clima/CidadeQueNaoExiste999",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "clima", "CidadeQueNaoExiste999"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test('Código de erro é CIDADE_NAO_ENCONTRADA', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo.codigo).to.eql('CIDADE_NAO_ENCONTRADA');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clima - nome inválido (400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/clima/X",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "clima", "X"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Código de erro é NOME_INVALIDO', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo.codigo).to.eql('NOME_INVALIDO');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cidades por Estado - CE (sucesso)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/cidades/CE?limite=5",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "cidades", "CE"],
+          "query": [{ "key": "limite", "value": "5" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Resposta respeita o limite informado', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo.uf).to.eql('CE');",
+              "    pm.expect(corpo.cidades.length).to.be.at.most(5);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cidades por Estado - UF inexistente (404)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/cidades/XX",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "cidades", "XX"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "pm.test('Código de erro é UF_NAO_ENCONTRADA', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo.codigo).to.eql('UF_NAO_ENCONTRADA');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cidades por Estado - sigla inválida (400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/cidades/ceara",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "cidades", "ceara"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code é 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Código de erro é SIGLA_UF_INVALIDA', function () {",
+              "    const corpo = pm.response.json();",
+              "    pm.expect(corpo.codigo).to.eql('SIGLA_UF_INVALIDA');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
